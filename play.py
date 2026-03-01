@@ -5,7 +5,7 @@ from env.snake_env import SnakeEnv
 import os, time, argparse, torch, pygame
 
 
-PATH = os.path.join('resoults', 'model', 'final_model.pth')
+PATH = os.path.join('results', 'model', 'final_model.pth')
 
 
 if __name__ == "__main__":
