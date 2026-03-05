@@ -24,7 +24,7 @@ if __name__ == "__main__":
         PATH = args.path
 
     
-    env = SnakeEnv()
+    env = SnakeEnv(False, 6, 6)
     agent = PPOAgent(env)
 
     timesteps = agent.load(PATH)

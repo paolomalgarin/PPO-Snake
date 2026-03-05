@@ -17,7 +17,7 @@ class SnakeEnv(Env):
             4
         )  # 3 actions: up, down, right, left
         self.observation_space = spaces.Box(
-            low=0, high=1, shape=(3, self.game.gridHeight, self.game.gridWidth), dtype=np.float32
+            low=0, high=1, shape=(4, self.game.gridHeight, self.game.gridWidth), dtype=np.float32
         )
 
         self.max_steps = self.game.gridHeight * self.game.gridWidth + 10
@@ -101,6 +101,19 @@ class SnakeEnv(Env):
                 elif currentPoint == self.game.food:
                     grid[2][row][col] = 1.0
 
+        # Set direction
+        match self.game.direction:
+            case Direction.UP:
+                dir = (0, 0)
+            case Direction.DOWN:
+                dir = (1, 1)
+            case Direction.RIGHT:
+                dir = (1, 0)
+            case Direction.LEFT:
+                dir = (0, 1)
+
+        dirX, dirY = dir
+        grid[3][dirX][dirY] = 1.0
 
         return grid
 
@@ -143,7 +156,7 @@ class SnakeEnv(Env):
         
         print(obs.shape)
 
-        for i in range(3):
+        for i in range(4):
             for j in range(self.game.gridHeight):
                 for k in range(self.game.gridWidth):
                     toprint = (
