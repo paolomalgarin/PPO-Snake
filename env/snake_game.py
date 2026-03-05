@@ -53,6 +53,7 @@ class SnakeGame:
 
         self.score = 0
         self.isGameOver = False
+        self.isGameWon = False
 
         if(useGui):
             pygame.init()
@@ -114,7 +115,8 @@ class SnakeGame:
             found = ((candidate not in self.body and candidate != self.head) or attempt >= maxAttempts) 
 
         if(attempt >= maxAttempts):
-            print("no free cell found to spawn food, spawning in occupied cell")
+            # print("no free cell found to spawn food, spawning in occupied cell")
+            pass
 
         self.food = Point(randX, randY)
 
@@ -167,10 +169,14 @@ class SnakeGame:
             self.grow()
             self.score += 1
 
+        self.body.pop() # (rimozione in coda)
+        
         if(self.hittedWall() or self.hittedBody()):
             self.isGameOver = True
+        
+        if(len(self.body) == (self.gridHeight * self.gridWidth - 1)):
+            self.isGameWon = True
 
-        self.body.pop() # (rimozione in coda)
 
 
     def displayCMD(self):
@@ -269,6 +275,7 @@ class SnakeGame:
 
         self.score = 0
         self.isGameOver = False
+        self.isGameWon = False
 
         while self.body.__len__() > 0:
             self.body.pop()

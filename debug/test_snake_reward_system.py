@@ -9,7 +9,7 @@ from env.snake_env import SnakeEnv
 
 if __name__ == "__main__":
     # ------------------------ game setup ------------------------
-    game = SnakeEnv()
+    game = SnakeEnv(False,6,6)
 
 
     # ------------------------ game logic (debug part) ------------------------
@@ -17,9 +17,10 @@ if __name__ == "__main__":
     game.render()
 
     isGameOver = False
+    tot_rew = 0
     while not isGameOver:
         # Get input
-        user_input = input("Move (a=left, d=right, w=forward, q=quit): ").lower()
+        user_input = input("Move (a=left, d=right, w=up, s=down, q=quit): ").lower()
         
         print("\n\n")
         
@@ -27,10 +28,12 @@ if __name__ == "__main__":
         match user_input:
             case 'w':
                 move = 0
-            case 'd':
+            case 's':
                 move = 1
-            case 'a':
+            case 'd':
                 move = 2
+            case 'a':
+                move = 3
             case 'q':
                 break
             case _:
@@ -38,11 +41,14 @@ if __name__ == "__main__":
         
         obs, reward, terminated, truncated, info = game.step(move)
         isGameOver = terminated or truncated
+        tot_rew += reward
 
         game.render()
         print(f"Step Reward: {reward}")
+        print(f"Steps: {game.steps}/{game.max_steps}")
 
     print("=== GAME OVER! ===")
     print("[Score " + str(game.game.score) + "]\n")
+    print("[Tor reward " + str(tot_rew) + "]\n")
 
     game.close()

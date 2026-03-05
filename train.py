@@ -36,7 +36,8 @@ if __name__ == "__main__":
 
     
     # Initialize agent and env
-    env = SnakeEnv()
+    # env = SnakeEnv(gridW=10, gridH=10)
+    env = SnakeEnv(gridW=6, gridH=6)
     agent = PPOAgent(env)
 
 
@@ -163,7 +164,7 @@ if __name__ == "__main__":
 
             while not stop:
                 # Chose an action
-                action, _ = agent.get_action(obs)
+                action, _ = agent.get_action(obs, deterministic=True)
 
                 # Perform action
                 obs, reward, terminated, truncated, info = env.step(action)

@@ -7,8 +7,8 @@ from env.snake_game import SnakeGame, Point, Direction
 
 class SnakeEnv(Env):
 
-    def __init__(self, useGui = False):
-        self.game = SnakeGame(useGui=useGui)
+    def __init__(self, useGui = False, gridW: int = 10, gridH: int = 10):
+        self.game = SnakeGame(gridW, gridH, useGui=useGui)
         self.game.reset()
         
         self.useGui = useGui
@@ -20,7 +20,7 @@ class SnakeEnv(Env):
             low=0, high=1, shape=(3, self.game.gridHeight, self.game.gridWidth), dtype=np.float32
         )
 
-        self.max_steps = self.game.gridHeight * self.game.gridWidth * 10
+        self.max_steps = self.game.gridHeight * self.game.gridWidth + 10
         self.steps = 0
 
         self.prev_score = self.game.score
@@ -31,7 +31,7 @@ class SnakeEnv(Env):
         self.steps = 0
         self.prev_score = self.game.score
         self.prev_food_distance = self.game.getFoodDistance()
-        self.max_steps = self.game.gridHeight * self.game.gridWidth * 10
+        self.max_steps = self.game.gridHeight * self.game.gridWidth + 10
 
         obs = self._get_obs()
         info = {}
@@ -55,12 +55,19 @@ class SnakeEnv(Env):
         self.game.changeDir(newDir)
         self.game.move()
 
+
         obs = self._get_obs()
         reward = self._compute_reward()
-        terminated = self.game.isGameOver
+        terminated = self.game.isGameOver or self.game.isGameWon
         truncated = self.steps >= self.max_steps
 
         info = {"score": self.game.score, "steps": self.steps}
+
+
+        # Adding more steps if the snake eats
+        if self.game.score > self.prev_score:
+            self.max_steps = self.steps + self.game.gridHeight * self.game.gridWidth + 10
+            self.prev_score = self.game.score
 
         return obs, reward, terminated, truncated, info
 
@@ -78,6 +85,7 @@ class SnakeEnv(Env):
     def _get_obs(self):
         grid = np.zeros((self.observation_space.shape), dtype=np.float32)
 
+        maxTailSize = self.game.gridWidth * self.game.gridHeight - 1
 
         for row in range(self.game.gridHeight):
             for col in range(self.game.gridWidth):
@@ -85,43 +93,68 @@ class SnakeEnv(Env):
 
                 if currentPoint == self.game.head:
                     grid[0][row][col] = 1.0
+
                 elif currentPoint in self.game.body:
-                    idx = self.game.body.index(currentPoint)
-                    grid[1][row][col] = 1.0 + idx
+                    reverse_idx = len(self.game.body) - 1 - self.game.body.index(currentPoint)
+                    grid[1][row][col] = (maxTailSize - reverse_idx) / maxTailSize
+                
                 elif currentPoint == self.game.food:
                     grid[2][row][col] = 1.0
+
 
         return grid
 
     def _compute_reward(self):
+        #   REWARD:
+        #
+        # + Food          100 - 1.5 * Get Closer
+        # - Die           200
+        # + Get closer    1
+        #
+        # - End game after max moves (resetted every apple eaten)   200
+        #
+        # Die > Food
+
         reward = 0
+
+        
         
         if self.game.score > self.prev_score:
-            self.prev_score = self.game.score
-            reward += 1
+            # reward = (100 - self.steps * 1.5) if (100 - self.steps * 1.5 > 10) else 10
+            reward = 1
+            
+        # elif (self.game.isGameOver or self.steps >= self.max_steps) and not (len(self.game.body) == self.game.gridHeight * self.game.gridWidth - 1):
+        #     reward = -150
+
+        # elif self.prev_food_distance > self.game.getFoodDistance():
+        #     reward = 1
+        
+        # self.prev_food_distance = self.game.getFoodDistance()
+
+
+        if(self.game.isGameWon):
+            reward += 1000
+        
 
         return float(reward)
 
     def _print_obs(self, obs):
         print("OBSERVATIONS:")
+        
+        print(obs.shape)
+
         for i in range(3):
-            for j in range(15):
-                for k in range(15):
+            for j in range(self.game.gridHeight):
+                for k in range(self.game.gridWidth):
                     toprint = (
                         "1"
-                        if obs[(i * 15 * 15) + (j * 15 + k)] == 1
+                        if obs[i][j][k] == 1
                         else (
                             "."
-                            if obs[(i * 15 * 15) + (j * 15 + k)] == 0
-                            else obs[(i * 15 * 15) + (j * 15 + k)]
+                            if obs[i][j][k] == 0
+                            else obs[i][j][k]
                         )
                     )
                     print(toprint, end=" ")
                 print()
             print()
-        print(
-            obs[15 * 15 * 3],
-            obs[15 * 15 * 3 + 1],
-            obs[15 * 15 * 3 + 2],
-            obs[15 * 15 * 3 + 3],
-        )

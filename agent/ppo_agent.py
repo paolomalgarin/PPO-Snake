@@ -9,18 +9,24 @@ import os
 
 class FeedForwardNN(nn.Module):
 
-    def __init__(self, obs_dim, action_dim):
+    def __init__(self, obs_shape, action_dim):
         super().__init__()
+
+        # Get the channels from the obs shape
+        C, H, W = obs_shape
         
-        self.conv1 = nn.Conv2d(obs_dim, 32, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(C, 32, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1)
         
         self.relu = nn.ReLU()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.adaptive_pool = nn.AdaptiveAvgPool2d((1, 1))
         
-        self.fc = nn.Linear(64, 32)
+        # Calculate the shape the tensor will be after the convolutions
+        # To manage various game dimentions
+        flattened_size = self._get_conv_output(obs_shape)
+        
+        self.fc = nn.Linear(flattened_size, 32)
         self.fc2 = nn.Linear(32, 32)
         
         self.policy_head = nn.Linear(32, action_dim)
@@ -33,17 +39,14 @@ class FeedForwardNN(nn.Module):
         
         x = self.conv1(obs)
         x = self.relu(x)
-        x = self.pool(x)
 
         x = self.conv2(x)
         x = self.relu(x)
         x = self.pool(x)
-
+        
         x = self.conv3(x)
         x = self.relu(x)
-        x = self.pool(x)
 
-        x = self.adaptive_pool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         x = self.fc2(x)
@@ -52,6 +55,18 @@ class FeedForwardNN(nn.Module):
         value = self.value_head(x)
 
         return logits, value
+    
+    def _get_conv_output(self, shape):
+        with torch.no_grad():
+            dummy = torch.zeros(1, *shape)
+            x = self.conv1(dummy)
+            x = self.relu(x)
+            x = self.conv2(x)
+            x = self.relu(x)
+            x = self.pool(x)
+            x = self.conv3(x)
+            x = self.relu(x)
+            return x.view(1, -1).size(1)
 
 
 # CREDITS:
@@ -64,15 +79,15 @@ class PPOAgent:
     def __init__(self, env):
         # Extract environment information
         self.env = env
-        self.obs_dim = env.observation_space.shape[0]
+        self.obs_shape = env.observation_space.shape
         self.act_dim = env.action_space.n # Now ONLY handles Discrete actions
 
         self._init_hyperparameters()
 
         # PPO ALG STEP 1
         # Initialize actor and critic networks
-        self.actor = FeedForwardNN(self.obs_dim, self.act_dim)
-        self.critic = FeedForwardNN(self.obs_dim, 1)
+        self.actor = FeedForwardNN(self.obs_shape, self.act_dim)
+        self.critic = FeedForwardNN(self.obs_shape, 1)
 
         self.actor_optim = Adam(self.actor.parameters(), lr=self.lr)
         self.critic_optim = Adam(self.critic.parameters(), lr=self.lr)
@@ -146,12 +161,12 @@ class PPOAgent:
 
     def _init_hyperparameters(self):
         # Default values for hyperparameters
-        self.timesteps_per_batch = 4800        # timesteps per batch (a batch is a number of timesteps before updating PPO's policy)
-        self.max_timesteps_per_episode = 1600  # timesteps per episode (an episode is a game inside the env)
-        self.gamma = 0.95
-        self.n_updates_per_iteration = 5        # Number of epoch, used to perform multiple updates on the actor and critic networks
+        self.timesteps_per_batch = 6400        # timesteps per batch (a batch is a number of timesteps before updating PPO's policy)
+        self.max_timesteps_per_episode = 3200  # timesteps per episode (an episode is a game inside the env)
+        self.gamma = 0.98
+        self.n_updates_per_iteration = 10      # Number of epoch, used to perform multiple updates on the actor and critic networks
         self.clip = 0.2
-        self.lr = 3e-4
+        self.lr = 4e-4
 
     def rollout(self):
         # Data of a batch

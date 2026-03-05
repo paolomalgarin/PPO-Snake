@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
 
     # Initialize env and agent
-    env = SnakeEnv(useGui=use_gui)
+    env = SnakeEnv(use_gui, 6, 6)
     agent = PPOAgent(env)
 
     # Load weights
