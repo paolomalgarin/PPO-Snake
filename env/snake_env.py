@@ -146,7 +146,7 @@ class SnakeEnv(Env):
 
 
         if(self.game.isGameWon):
-            reward += 1000
+            reward += self.game.gridWidth * self.game.gridHeight
         
 
         return float(reward)

@@ -41,7 +41,7 @@ Along the way, this project became a deep dive into PPO: understanding how it wo
 > (You can find the model in `/agent/pretrained_models/20M_timesteps.pth`)
 
 <p align=center>
-   <img src="./img/gameplays/game3.gif" alt='gameplay'>
+   <img src="./img/gameplays/old/game3.gif" alt='gameplay'>
 </p>
 
 <br>
@@ -89,15 +89,18 @@ Before being passed to the network, the observation is batched to shape (N, 3, 1
 
 After training the model for 20M timesteps, here are the results:
 
-> This is the reward graph, which shows the model learning and getting more reward.  
-> This is also the score graph since score and reward coincide.
+> This is the reward graph, which shows the model learning and getting more reward.
 
-![image](./img/graphs/reward-graph.png)
+![image](./img/graphs/grid-size-6/reward-graph.png)
+
+> This is the score graph, which shows the model score during training.  
+
+![image](./img/graphs/grid-size-6/score-graph.png)
   
 > This is the episode length graph.
 > It represents the duration of the games during training.
 
-![image](./img/graphs/ep-length-graph.png)
+![image](./img/graphs/grid-size-6/ep-length-graph.png)
 
 > Below are the hyperparameters used during training.
  ```json

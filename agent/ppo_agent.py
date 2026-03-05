@@ -199,7 +199,7 @@ class PPOAgent:
                 batch_obs.append(obs)
 
                 action, log_prob = self.get_action(obs)
-                obs, rew, terminated, truncated, _ = self.env.step(action)
+                obs, rew, terminated, truncated, info = self.env.step(action)
                 done = terminated or truncated
 
                 # Collect current reward, action, and log prob
