@@ -104,25 +104,25 @@ After training the model for 20M timesteps, here are the results:
 
 > Below are the hyperparameters used during training.
  ```json
- {  
-     "agent": {  
-         "timesteps_per_batch": 4800,  
-         "max_timesteps_per_episode": 1600,  
-         "gamma": 0.95,  
-         "n_updates_per_iteration": 5,  
-         "clip": 0.2,  
-         "lr": 0.0003  
-     },  
-     "env": {  
-         "max_steps": 1000,  
-         "obs_shape": [  
-             3,  
-             10,  
-             10  
-         ],  
-         "action_shape": [4]  
-     }  
- }
+    {
+        "agent": {
+            "timesteps_per_batch": 6400,
+            "max_timesteps_per_episode": 3200,
+            "gamma": 0.98,
+            "n_updates_per_iteration": 10,
+            "clip": 0.2,
+            "lr": 0.0004
+        },
+        "env": {
+            "max_steps": 46,
+            "obs_shape": [
+                4,
+                6,
+                6
+            ],
+            "action_shape": []
+        }
+    }
  ```
 
 
