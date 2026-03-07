@@ -1,4 +1,4 @@
-![image](./img/static-logo-alt.png)
+![image](./img/logo/animated_title.gif)
 
 <p align=center>
    <i>Using PPO to beat snake.</i>
