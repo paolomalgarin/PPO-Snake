@@ -41,7 +41,14 @@ Along the way, this project became a deep dive into PPO: understanding how it wo
 > (You can find the model in `/agent/pretrained_models/20M_timesteps.pth`)
 
 <p align=center>
-   <img src="./img/gameplays/old/game3.gif" alt='gameplay'>
+   <img src="./img/gameplays/size_6/gameplay_1.gif" alt='gameplay'>
+</p>
+
+<p align=center>
+   <img src="./img/gameplays/size_4/gameplay_1.gif" alt='gameplay'>
+   <img src="./img/gameplays/size_4/gameplay_2.gif" alt='gameplay'>
+   <img src="./img/gameplays/size_4/gameplay_3.gif" alt='gameplay'>
+   <img src="./img/gameplays/size_4/gameplay_4.gif" alt='gameplay'>
 </p>
 
 <br>
@@ -120,7 +127,7 @@ After training the model for 20M timesteps, here are the results:
                 6,
                 6
             ],
-            "action_shape": []
+            "action_shape": [4]
         }
     }
  ```
