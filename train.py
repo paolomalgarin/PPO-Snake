@@ -7,8 +7,9 @@ from torch import nn
 
 
 TRAINING_TIMESTEPS = 2_000_000  # Number of timesteps the model will be trained for
-CHECKPOINT_INTERVAL = 500_000  # Number of steps between checkpoint saves
-VISUALIZE_FREQUENCY = 500_000  # Number of steps after wich the agent will be playing a live game, to see how it's doing
+CHECKPOINT_INTERVAL = 500_000   # Number of steps between checkpoint saves
+VISUALIZE_FREQUENCY = 500_000   # Number of steps after wich the agent will be playing a live game, to see how it's doing
+GRID_SIZE = 6                   # Size of the game grid
 
 
 if __name__ == "__main__":
@@ -23,12 +24,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='trainig arguments')
     
     parser.add_argument('--train-ts', type=int, default=None, help='Number of timesteps the model will be trained for')
+    parser.add_argument('--grid-size', type=int, default=None, help='Number of timesteps the model will be trained for')
     parser.add_argument('--ci', type=int, default=None, help='Number of steps between checkpoint saves')
     parser.add_argument('--vf', type=int, default=None, help='Number of steps after wich the agent will be playing a live game, to see how it\'s doing')
     args = parser.parse_args()
     
     if args.train_ts is not None:
         TRAINING_TIMESTEPS = args.train_ts
+    if args.grid_size is not None:
+        GRID_SIZE = args.grid_size
     if args.ci is not None:
         CHECKPOINT_INTERVAL = args.ci
     if args.vf is not None:
@@ -36,8 +40,7 @@ if __name__ == "__main__":
 
     
     # Initialize agent and env
-    # env = SnakeEnv(gridW=10, gridH=10)
-    env = SnakeEnv(gridW=6, gridH=6)
+    env = SnakeEnv(gridW=GRID_SIZE, gridH=GRID_SIZE)
     agent = PPOAgent(env)
 
 
@@ -50,6 +53,7 @@ if __name__ == "__main__":
             'n_updates_per_iteration': agent.n_updates_per_iteration,       # Number of epoch, used to perform multiple updates on the actor and critic networks
             'clip': agent.clip,
             'lr': agent.lr,
+            'entropy_coef': agent.entropy_coef,
         },
         'env': {
             'max_steps': env.max_steps,
@@ -76,7 +80,7 @@ if __name__ == "__main__":
     pbar = PBar(TRAINING_TIMESTEPS, preset="training")
     
     while(t_so_far < TRAINING_TIMESTEPS):
-        batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_rews, batch_lens = agent.rollout()
+        batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_rews, batch_lens, apples = agent.rollout()
         batch_n += 1
 
         # Calculate how many timesteps we collected this batch
@@ -94,6 +98,10 @@ if __name__ == "__main__":
         min_reward = float(min(sum(ep_rews) for ep_rews in batch_rews))
         avg_ep_len = float(sum(batch_lens) / len(batch_lens))
 
+        avg_apples = float(sum(apples) / len(apples))
+        max_apples = float(max(apples))
+        min_apples = float(min(apples))
+
         log_data = {
             'batch': batch_n,
             'timesteps_so_far': int(t_so_far),
@@ -104,6 +112,9 @@ if __name__ == "__main__":
             'avg_episode_length': avg_ep_len,
             'max_episode_length': int(max(batch_lens)),
             'min_episode_length': int(min(batch_lens)),
+            'avg_apples': avg_apples,
+            'max_apples': max_apples,
+            'min_apples': min_apples,
         }
 
         if not training_logs_first_entry:
@@ -115,7 +126,7 @@ if __name__ == "__main__":
 
 
         # Calculate V_{phi, k}
-        V, _ = agent.evaluate(batch_obs, batch_acts)
+        V, _, _ = agent.evaluate(batch_obs, batch_acts)
 
         # PPO ALG STEP 5 (step 4 is in rollout function)
         # Calculate advantage
@@ -128,7 +139,7 @@ if __name__ == "__main__":
             # Epoch code (where we perform multiple updates on the actor and critic networks)
 
             # Calculate pi_theta(a_t | s_t)
-            V, curr_log_probs = agent.evaluate(batch_obs, batch_acts)
+            V, curr_log_probs, entropy = agent.evaluate(batch_obs, batch_acts)
             
             # Calculate ratios
             ratios = torch.exp(curr_log_probs - batch_log_probs)
@@ -137,7 +148,7 @@ if __name__ == "__main__":
             surr1 = ratios * A_k
             surr2 = torch.clamp(ratios, 1 - agent.clip, 1 + agent.clip) * A_k
 
-            actor_loss = (-torch.min(surr1, surr2)).mean()
+            actor_loss = (-torch.min(surr1, surr2)).mean() - agent.entropy_coef * entropy.mean()
             critic_loss = nn.MSELoss()(V, batch_rtgs)
             
             # Calculate gradients and perform backward propagation for actor network
@@ -200,3 +211,45 @@ if __name__ == "__main__":
 
     print('Final model saved!')
     print('Training completed')
+
+    print('\n\nEvaluation (press CTRL + C if you don\'t want it):')
+
+    mean_rew_eval = 0
+    mean_score_eval = 0
+    mean_steps_eval = 0
+    eval_games = 1000
+
+    eval_pbar = PBar(eval_games, 'Eval games', preset='eval')
+
+    for i in range(eval_games):
+        stop = False
+        tot_reward = 0
+        obs, info = env.reset()
+
+        while not stop:
+            # Chose an action
+            action, _ = agent.get_action(obs, deterministic=True)
+
+            # Perform action
+            obs, reward, terminated, truncated, info = env.step(action)
+            stop = terminated or truncated
+
+            tot_reward += reward
+
+        # Visualize results
+        mean_rew_eval += tot_reward
+        mean_score_eval += info['score']
+        mean_steps_eval += info['steps']
+        
+        eval_pbar.update(1)
+    
+    eval_pbar.close()
+
+    mean_rew_eval = mean_rew_eval / eval_games
+    mean_score_eval = mean_score_eval / eval_games
+    mean_steps_eval = mean_steps_eval / eval_games
+
+    print(f'Games played: \t{eval_games}')
+    print(f'Mean reward: \t{mean_rew_eval:.2f}')
+    print(f'Mean score: \t{mean_score_eval:.2f}')
+    print(f'Mean steps: \t{mean_steps_eval:.2f}')

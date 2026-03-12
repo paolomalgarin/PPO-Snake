@@ -26,8 +26,9 @@ class FeedForwardNN(nn.Module):
         # To manage various game dimentions
         flattened_size = self._get_conv_output(obs_shape)
         
-        self.fc = nn.Linear(flattened_size, 32)
-        self.fc2 = nn.Linear(32, 32)
+        self.fc1 = nn.Linear(flattened_size, 256)
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, 32)
         
         self.policy_head = nn.Linear(32, action_dim)
         self.value_head = nn.Linear(32, 1)
@@ -42,14 +43,21 @@ class FeedForwardNN(nn.Module):
 
         x = self.conv2(x)
         x = self.relu(x)
-        x = self.pool(x)
+        # x = self.pool(x)
         
         x = self.conv3(x)
         x = self.relu(x)
 
         x = x.view(x.size(0), -1)
-        x = self.fc(x)
+
+        x = self.fc1(x)
+        x = self.relu(x)
+
         x = self.fc2(x)
+        x = self.relu(x)
+        
+        x = self.fc3(x)
+        x = self.relu(x)
 
         logits = self.policy_head(x)
         value = self.value_head(x)
@@ -63,7 +71,7 @@ class FeedForwardNN(nn.Module):
             x = self.relu(x)
             x = self.conv2(x)
             x = self.relu(x)
-            x = self.pool(x)
+            # x = self.pool(x)
             x = self.conv3(x)
             x = self.relu(x)
             return x.view(1, -1).size(1)
@@ -106,7 +114,7 @@ class PPOAgent:
         # PPO ALG STEP 2
         while(t_so_far < total_timesteps):
             # PPO ALG STEP 3
-            batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_rews, batch_lens = self.rollout()
+            batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_rews, batch_lens, _ = self.rollout()
             batch_n += 1
 
             # Calculate how many timesteps we collected this batch
@@ -118,7 +126,7 @@ class PPOAgent:
             self._print_stats(total_batch_steps, batch_rews, batch_lens, batch_n)
 
             # Calculate V_{phi, k}
-            V, _ = self.evaluate(batch_obs, batch_acts)
+            V, _, _ = self.evaluate(batch_obs, batch_acts)
 
             # PPO ALG STEP 5 (step 4 is in rollout function)
             # Calculate advantage
@@ -131,7 +139,7 @@ class PPOAgent:
                 # Epoch code (where we perform multiple updates on the actor and critic networks)
 
                 # Calculate pi_theta(a_t | s_t)
-                V, curr_log_probs = self.evaluate(batch_obs, batch_acts)
+                V, curr_log_probs, entropy = self.evaluate(batch_obs, batch_acts)
                 
                 # Calculate ratios
                 ratios = torch.exp(curr_log_probs - batch_log_probs)
@@ -140,7 +148,7 @@ class PPOAgent:
                 surr1 = ratios * A_k
                 surr2 = torch.clamp(ratios, 1 - self.clip, 1 + self.clip) * A_k
 
-                actor_loss = (-torch.min(surr1, surr2)).mean()
+                actor_loss = (-torch.min(surr1, surr2)).mean() - self.entropy_coef * entropy.mean()
                 critic_loss = nn.MSELoss()(V, batch_rtgs)
                 
                 # Calculate gradients and perform backward propagation for actor network
@@ -161,12 +169,13 @@ class PPOAgent:
 
     def _init_hyperparameters(self):
         # Default values for hyperparameters
-        self.timesteps_per_batch = 6400        # timesteps per batch (a batch is a number of timesteps before updating PPO's policy)
+        self.timesteps_per_batch = 12800       # timesteps per batch (a batch is a number of timesteps before updating PPO's policy)
         self.max_timesteps_per_episode = 3200  # timesteps per episode (an episode is a game inside the env)
-        self.gamma = 0.98
+        self.gamma = 0.99
         self.n_updates_per_iteration = 10      # Number of epoch, used to perform multiple updates on the actor and critic networks
         self.clip = 0.2
         self.lr = 4e-4
+        self.entropy_coef = 0.01
 
     def rollout(self):
         # Data of a batch
@@ -176,6 +185,7 @@ class PPOAgent:
         batch_rews = []            # batch rewards
         batch_rtgs = []            # batch rewards-to-go
         batch_lens = []            # episodic lengths in batch
+        apples = []            # episodic lengths in batch
 
 
         # Number of timesteps run so far this batch
@@ -208,6 +218,7 @@ class PPOAgent:
                 batch_log_probs.append(log_prob)
 
                 if(done):
+                    apples.append(info['score'])
                     break
             
             # Collect episode length and rewards
@@ -223,7 +234,7 @@ class PPOAgent:
         batch_rtgs = self.compute_rtgs(batch_rews)
 
         # Return the data of the batch 
-        return batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_rews, batch_lens
+        return batch_obs, batch_acts, batch_log_probs, batch_rtgs, batch_rews, batch_lens, apples
 
     def get_action(self, obs, deterministic=False):
         # N.B: deterministic is a flag to use (set true) when wanting to choose always the best action the model thinks there is (during play or evaluation)
@@ -286,9 +297,10 @@ class PPOAgent:
         mean, _ = self.actor.forward(batch_obs)
         dist = Categorical(logits=mean)
         log_probs = dist.log_prob(batch_acts.squeeze())
+        entropy = dist.entropy()
 
         # Return predicted values V and log probs log_probs
-        return V, log_probs
+        return V, log_probs, entropy
     
     def save(self, total_timesteps = None, path = os.path.join('results', 'model'), file_name = 'final_mnodel.pth'):
         saving_path = os.path.join(path, file_name)
@@ -334,13 +346,13 @@ class PPOAgent:
         # Calculate values to print
         mean_reward = sum(sum(ep_rews) for ep_rews in batch_rews) / len(batch_rews)
         mean_ep_len = sum(batch_lens) / len(batch_lens)
-        max_ep_len = max(batch_lens)
+        max_ep_rew = max(sum(ep_rews) for ep_rews in batch_rews)
 
         strings = [
             f"| ", 
             f"| Mean reward       |  {mean_reward:.2f} ",
+            f"| Max episode rew   |  {max_ep_rew} ", 
             f"| Mean episode len  |  {mean_ep_len:.1f} ",
-            f"| Max episode len   |  {max_ep_len} ", 
             f"| Total batch steps |  {batch_steps} ",
         ]
 

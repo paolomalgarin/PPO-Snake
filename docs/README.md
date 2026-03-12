@@ -41,7 +41,12 @@ Along the way, this project became a deep dive into PPO: understanding how it wo
 > (You can find the model in `/agent/pretrained_models/20M_timesteps.pth`)
 
 <p align=center>
+   <img src="./img/gameplays/size_10/gameplay_1.gif" alt='gameplay'>
+</p>
+
+<p align=center>
    <img src="./img/gameplays/size_6/gameplay_1.gif" alt='gameplay'>
+   <img src="./img/gameplays/size_6/gameplay_2.gif" alt='gameplay'>
 </p>
 
 <p align=center>

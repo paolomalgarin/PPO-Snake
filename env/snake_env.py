@@ -136,8 +136,8 @@ class SnakeEnv(Env):
             # reward = (100 - self.steps * 1.5) if (100 - self.steps * 1.5 > 10) else 10
             reward = 1
             
-        # elif (self.game.isGameOver or self.steps >= self.max_steps) and not (len(self.game.body) == self.game.gridHeight * self.game.gridWidth - 1):
-        #     reward = -150
+        elif (self.game.isGameOver or self.steps >= self.max_steps) and not (len(self.game.body) == self.game.gridHeight * self.game.gridWidth - 1):
+            reward = -1
 
         # elif self.prev_food_distance > self.game.getFoodDistance():
         #     reward = 1
@@ -146,7 +146,8 @@ class SnakeEnv(Env):
 
 
         if(self.game.isGameWon):
-            reward += self.game.gridWidth * self.game.gridHeight
+            # reward += self.game.gridWidth * self.game.gridHeight
+            reward += 30
         
 
         return float(reward)

@@ -6,6 +6,7 @@ import os, time, argparse, torch, pygame
 
 
 PATH = os.path.join('results', 'model', 'final_model.pth')
+GRID_SIZE = 6
 
 
 if __name__ == "__main__":
@@ -14,15 +15,18 @@ if __name__ == "__main__":
     
     parser.add_argument('--path', type=str, default=None, help='Path to the model file (file name included). It can be both absolute or relative to project\'s root folder')
     parser.add_argument('--disable-gui', action='store_true', help='no value needed, deactivates gui on env (it will use the cli)')
+    parser.add_argument('--grid-size', type=int, default=None, help='Number of timesteps the model will be trained for')
     args = parser.parse_args()
     
     if args.path is not None:
         PATH = args.path
     use_gui = not args.disable_gui
+    if args.grid_size is not None:
+        GRID_SIZE = args.grid_size
 
 
     # Initialize env and agent
-    env = SnakeEnv(use_gui, 6, 6)
+    env = SnakeEnv(use_gui, 10, 10)
     agent = PPOAgent(env)
 
     # Load weights
@@ -41,10 +45,11 @@ if __name__ == "__main__":
             stop = termin or trunc
             time.sleep(0.2)
             
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    stop = True
-                    exit()
+            if use_gui:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        stop = True
+                        exit()
 
 
         print('\nGame over')
