@@ -37,31 +37,13 @@ This project aims to use [**PPO**](https://en.wikipedia.org/wiki/Proximal_policy
 The main goal was to train a reinforcement learning agent capable of learning the game from scratch.  
 Along the way, this project became a deep dive into PPO: understanding how it works, tuning hyperparameters, stabilizing training, and analyzing learning behavior through metrics. 
 
-> Here is a gameplay demo of the final agent trained for 20M timesteps  
-> (You can find the model in `/agent/pretrained_models/20M_timesteps.pth`)
+> Here are some gameplay demos of final agents trained for millions of timesteps  
+> (You can find the models in `/agent/pretrained_models/`)
 
 <p align=center>
-   
-   <p>
-      
-   </p>
+    <img src="./img/gameplays/size_4/gameplay_1.gif" alt='gameplay'> <img src="./img/gameplays/size_6/gameplay_1.gif" alt='gameplay'> <img src="./img/gameplays/size_10/gameplay_1.gif" alt='gameplay'> <img src="./img/gameplays/size_6/gameplay_2.gif" alt='gameplay'> <img src="./img/gameplays/size_4/gameplay_2.gif" alt='gameplay'>
 </p>
 
-<table>
-   <tr>
-      <td>
-         <img src="./img/gameplays/size_10/gameplay_1.gif" alt='gameplay'>  
-         <div>
-            <img src="./img/gameplays/size_4/gameplay_1.gif" alt='gameplay'>
-            <img src="./img/gameplays/size_4/gameplay_2.gif" alt='gameplay'>
-         </div> 
-      </td>
-      <td>
-         <img src="./img/gameplays/size_6/gameplay_1.gif" alt='gameplay'> <br>
-         <img src="./img/gameplays/size_6/gameplay_2.gif" alt='gameplay'>
-      </td>
-   </tr>
-</table>
 
 <br>
 <br>
