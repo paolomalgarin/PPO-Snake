@@ -41,11 +41,11 @@ Along the way, this project became a deep dive into PPO: understanding how it wo
 > (You can find the models in `/agent/pretrained_models/`)
 
 <p align=center style="display: flex; justify-content: center; width: 100%;">
-    <img src="./img/gameplays/size_4/gameplay_1.gif" alt='gameplay' width=14%> 
+    <img src="./img/gameplays/size_4/gameplay_1.gif" alt='gameplay' width=13%> 
    <img src="./img/gameplays/size_6/gameplay_1.gif" alt='gameplay' width=20%> 
    <img src="./img/gameplays/size_10/gameplay_1.gif" alt='gameplay' width=28%> 
    <img src="./img/gameplays/size_6/gameplay_2.gif" alt='gameplay' width=20%> 
-   <img src="./img/gameplays/size_4/gameplay_2.gif" alt='gameplay' width=14%>
+   <img src="./img/gameplays/size_4/gameplay_2.gif" alt='gameplay' width=13%>
 </p>
 
 
