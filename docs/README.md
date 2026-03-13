@@ -41,20 +41,27 @@ Along the way, this project became a deep dive into PPO: understanding how it wo
 > (You can find the model in `/agent/pretrained_models/20M_timesteps.pth`)
 
 <p align=center>
-   <img src="./img/gameplays/size_10/gameplay_1.gif" alt='gameplay'>
+   
+   <p>
+      
+   </p>
 </p>
 
-<p align=center>
-   <img src="./img/gameplays/size_6/gameplay_1.gif" alt='gameplay'>
-   <img src="./img/gameplays/size_6/gameplay_2.gif" alt='gameplay'>
-</p>
-
-<p align=center>
-   <img src="./img/gameplays/size_4/gameplay_1.gif" alt='gameplay'>
-   <img src="./img/gameplays/size_4/gameplay_2.gif" alt='gameplay'>
-   <img src="./img/gameplays/size_4/gameplay_3.gif" alt='gameplay'>
-   <img src="./img/gameplays/size_4/gameplay_4.gif" alt='gameplay'>
-</p>
+<table>
+   <tr>
+      <td>
+         <img src="./img/gameplays/size_10/gameplay_1.gif" alt='gameplay'>  
+         <div>
+            <img src="./img/gameplays/size_4/gameplay_1.gif" alt='gameplay'>
+            <img src="./img/gameplays/size_4/gameplay_2.gif" alt='gameplay'>
+         </div> 
+      </td>
+      <td>
+         <img src="./img/gameplays/size_6/gameplay_1.gif" alt='gameplay'> <br>
+         <img src="./img/gameplays/size_6/gameplay_2.gif" alt='gameplay'>
+      </td>
+   </tr>
+</table>
 
 <br>
 <br>
@@ -103,15 +110,11 @@ After training the model for 20M timesteps, here are the results:
 
 > Here are the specs for every grid size
 
-<p align=center>
-
 | Grid Size | Training Timesteps | Mean score | Win % |
 |   :---:   |       :---:        |    :---:   | :---: |
 | 10 x 10   |     20.000.000     |    80/99   |  63%  |
-| 6 x 6     |      3.000.000     |    34/35   |  95%  |
-| 4 x 4     |      1.000.000     |    15/15   |  99% |
-
-</p>
+|  6 x 6    |      3.000.000     |    34/35   |  95%  |
+|  4 x 4    |      1.000.000     |    15/15   |  99%  |
 
 > This is the score graph *(of the 6x6 snake)*, which shows the model score during training.  
 
