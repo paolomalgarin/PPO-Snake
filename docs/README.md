@@ -101,42 +101,21 @@ Before being passed to the network, the observation is batched to shape (N, 3, 1
 
 After training the model for 20M timesteps, here are the results:
 
-> This is the reward graph, which shows the model learning and getting more reward.
+> Here are the specs for every grid size
 
-![image](./img/graphs/grid-size-6/reward-graph.png)
+<p align=center>
 
-> This is the score graph, which shows the model score during training.  
+| Grid Size | Training Timesteps | Mean score | Win % |
+|   :---:   |       :---:        |    :---:   | :---: |
+| 10 x 10   |     20.000.000     |    80/99   |  63%  |
+| 6 x 6     |      3.000.000     |    34/35   |  95%  |
+| 4 x 4     |      1.000.000     |    15/15   |  99% |
+
+</p>
+
+> This is the score graph *(of the 6x6 snake)*, which shows the model score during training.  
 
 ![image](./img/graphs/grid-size-6/score-graph.png)
-  
-> This is the episode length graph.
-> It represents the duration of the games during training.
-
-![image](./img/graphs/grid-size-6/ep-length-graph.png)
-
-> Below are the hyperparameters used during training.
- ```json
-    {
-        "agent": {
-            "timesteps_per_batch": 6400,
-            "max_timesteps_per_episode": 3200,
-            "gamma": 0.98,
-            "n_updates_per_iteration": 10,
-            "clip": 0.2,
-            "lr": 0.0004
-        },
-        "env": {
-            "max_steps": 46,
-            "obs_shape": [
-                4,
-                6,
-                6
-            ],
-            "action_shape": [4]
-        }
-    }
- ```
-
 
 <br>
 <br>
