@@ -85,20 +85,20 @@ class SnakeEnv(Env):
 
 
         # Head
-        headX, headY = int(self.game.head['x']), int(self.game.head['y'])
+        headX, headY = self.game.head
         if((headX >= 0 and headX < self.game.gridWidth) and (headY >= 0 and headY < self.game.gridHeight)):
             grid[0][headY][headX] = 1.0
 
         # Body
-        body_len = self.game.body.size
+        body_len = len(self.game.body)
         maxTailSize = self.game.gridWidth * self.game.gridHeight - 1
 
         for i, point in enumerate(self.game.body):
             reverse_idx = body_len - 1 - i
-            grid[1][int(point['y'])][int(point['x'])] = (maxTailSize - reverse_idx) / maxTailSize
+            grid[1][point.y][point.x] = (maxTailSize - reverse_idx) / maxTailSize
         
         # Food
-        foodX, foodY = int(self.game.food['x']), int(self.game.food['y'])
+        foodX, foodY = self.game.food
         if(foodX != -1 and foodY != -1):
             grid[2][foodY][foodX] = 1.0
 
