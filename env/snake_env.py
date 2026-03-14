@@ -2,7 +2,7 @@
 
 from gymnasium import Env, spaces
 import numpy as np
-from env.snake_game import SnakeGame, Point, Direction
+from env.snake_game import SnakeGame, Direction
 
 
 class SnakeEnv(Env):
@@ -24,13 +24,11 @@ class SnakeEnv(Env):
         self.steps = 0
 
         self.prev_score = self.game.score
-        self.prev_food_distance = self.game.getFoodDistance()
 
     def reset(self, seed=None, options=None):
         self.game.reset()
         self.steps = 0
         self.prev_score = self.game.score
-        self.prev_food_distance = self.game.getFoodDistance()
         self.max_steps = self.game.gridHeight * self.game.gridWidth + 10
 
         obs = self._get_obs()
@@ -85,68 +83,59 @@ class SnakeEnv(Env):
     def _get_obs(self):
         grid = np.zeros((self.observation_space.shape), dtype=np.float32)
 
+
+        # Head
+        headX, headY = int(self.game.head['x']), int(self.game.head['y'])
+        if((headX >= 0 and headX < self.game.gridWidth) and (headY >= 0 and headY < self.game.gridHeight)):
+            grid[0][headY][headX] = 1.0
+
+        # Body
+        body_len = self.game.body.size
         maxTailSize = self.game.gridWidth * self.game.gridHeight - 1
 
-        for row in range(self.game.gridHeight):
-            for col in range(self.game.gridWidth):
-                currentPoint = Point(col, row)
+        for i, point in enumerate(self.game.body):
+            reverse_idx = body_len - 1 - i
+            grid[1][int(point['y'])][int(point['x'])] = (maxTailSize - reverse_idx) / maxTailSize
+        
+        # Food
+        foodX, foodY = int(self.game.food['x']), int(self.game.food['y'])
+        if(foodX != -1 and foodY != -1):
+            grid[2][foodY][foodX] = 1.0
 
-                if currentPoint == self.game.head:
-                    grid[0][row][col] = 1.0
-
-                elif currentPoint in self.game.body:
-                    reverse_idx = len(self.game.body) - 1 - self.game.body.index(currentPoint)
-                    grid[1][row][col] = (maxTailSize - reverse_idx) / maxTailSize
-                
-                elif currentPoint == self.game.food:
-                    grid[2][row][col] = 1.0
 
         # Set direction
         match self.game.direction:
             case Direction.UP:
-                dir = (0, 0)
+                grid[3][0][0] = 1.0
             case Direction.DOWN:
                 dir = (1, 1)
+                grid[3][1][1] = 1.0
             case Direction.RIGHT:
-                dir = (1, 0)
+                grid[3][1][0] = 1.0
             case Direction.LEFT:
-                dir = (0, 1)
-
-        dirX, dirY = dir
-        grid[3][dirX][dirY] = 1.0
+                grid[3][0][1] = 1.0
 
         return grid
+
 
     def _compute_reward(self):
         #   REWARD:
         #
-        # + Food          100 - 1.5 * Get Closer
-        # - Die           200
-        # + Get closer    1
-        #
-        # - End game after max moves (resetted every apple eaten)   200
-        #
-        # Die > Food
+        # - Die                                                     [ -1  ]
+        # - End game after max moves (resetted every apple eaten)   [ -1  ]
+        # + Eat food                                                [ +1  ]
+        # + Win game                                                [ +30 ]
 
         reward = 0
 
         
-        
         if self.game.score > self.prev_score:
-            # reward = (100 - self.steps * 1.5) if (100 - self.steps * 1.5 > 10) else 10
             reward = 1
             
         elif (self.game.isGameOver or self.steps >= self.max_steps) and not (len(self.game.body) == self.game.gridHeight * self.game.gridWidth - 1):
             reward = -1
 
-        # elif self.prev_food_distance > self.game.getFoodDistance():
-        #     reward = 1
-        
-        # self.prev_food_distance = self.game.getFoodDistance()
-
-
         if(self.game.isGameWon):
-            # reward += self.game.gridWidth * self.game.gridHeight
             reward += 30
         
 
@@ -166,7 +155,7 @@ class SnakeEnv(Env):
                         else (
                             "."
                             if obs[i][j][k] == 0
-                            else obs[i][j][k]
+                            else f'{obs[i][j][k]:.3f}'
                         )
                     )
                     print(toprint, end=" ")

@@ -3,6 +3,10 @@ from enum import Enum
 from typing import NamedTuple
 import random, math
 import pygame, os
+import numpy as np
+
+
+POINT_DTYPE = np.dtype([('x', int), ('y', int)])
 
 
 class Direction(Enum):
@@ -33,9 +37,114 @@ class Direction(Enum):
             case Direction.LEFT:
                 return Direction.UP
 
-class Point(NamedTuple):
-    x: int
-    y: int
+class CircArray:
+    # IN THIS IMPLEMENTATION 
+    # + HEAD IS THE POINTER TO THE 1st ELEMENT
+    # + TAIL IS THE POINTER TO THE INDEX AFTER THE LAST
+    # 
+    # Eg:
+    #   [ ][ ][ ][x][x][x][x][ ][ ]
+    #             ^           ^
+    #            Head        Tail
+
+    def __init__(self, max_len: int, elm_dtype: np.dtype):
+        self.dtype = elm_dtype
+        
+        self.max_len = max_len
+        self.array = np.empty(self.max_len, dtype=self.dtype)
+
+        self.head = 0
+        self.tail = 0
+        self.size = 0
+
+    # -------------------- Add methods --------------------
+    def tail_add(self, elm) -> bool:
+        if(self.is_full()):
+            return False
+
+        self.array[self.tail] = np.array(elm, dtype=self.dtype)
+        self.tail = (self.tail + 1) % self.max_len
+        self.size += 1
+        return True
+
+    def head_add(self, elm) -> bool:
+        if(self.is_full()):
+            return False
+
+        self.head = (self.max_len + self.head - 1) % self.max_len
+        self.array[self.head] = np.array(elm, dtype=self.dtype)
+        self.size += 1
+        return True
+
+    # -------------------- Remove methods --------------------
+    def tail_remove(self) -> bool:
+        if(self.is_empty()):
+            return False
+
+        self.tail = (self.max_len + self.tail - 1) % self.max_len
+        self.size -= 1
+        return True
+    
+    def head_remove(self) -> bool:
+        if(self.is_empty()):
+            return False
+
+        self.head = (self.head + 1) % self.max_len
+        self.size -= 1
+        return True
+
+    # -------------------- Other methods --------------------
+    def clear(self):
+        self.head = 0
+        self.tail = 0
+        self.size = 0
+
+    def is_empty(self) -> bool:
+        return self.size == 0
+
+    def is_full(self) -> bool:
+        return self.size == self.max_len
+    
+    def __len__(self) -> int:
+        return self.size
+    
+    def __contains__(self, point) -> bool:
+        # Case array empty
+        if self.size == 0:
+            return False
+        
+        # Case array full
+        if self.size == self.max_len:
+            return np.any(self.array == point)
+        
+        # General case
+        if self.head <= self.tail:
+            return np.any(self.array[self.head:self.tail] == point)
+        else:
+            part1 = np.any(self.array[self.head:] == point)
+            part2 = np.any(self.array[:self.tail] == point)
+            return part1 or part2
+        
+    def __iter__(self):
+        if self.head <= self.tail:
+            yield from self.array[self.head:self.tail]
+        else:
+            yield from self.array[self.head:]
+            yield from self.array[:self.tail]
+
+    def __getitem__(self, idx):
+        if idx < 0 or idx >= self.size:
+            raise IndexError
+        return self.array[(self.head + idx) % self.max_len]
+        
+    # -------------------- Helper methods --------------------
+    def _get_contiguous_array(self) -> np.ndarray:
+        # Returns a contiguous array made only of the array elements
+        # (morphs the circ array in a normal array of the size of the elements) 
+        if self.head <= self.tail:
+            return self.array[self.head:self.tail]
+        else:
+            return np.concatenate((self.array[self.head:], self.array[:self.tail]))
 
 
 class SnakeGame:
@@ -44,9 +153,12 @@ class SnakeGame:
         self.gridWidth = gridW
         self.gridHeight = gridH
 
-        self.head = Point(0, 0)
-        self.body = []
-        self.food = None
+        self.head = np.array((0, 0), dtype=POINT_DTYPE)
+        self.food = np.array((0, 0), dtype=POINT_DTYPE)
+
+        body_max_len = self.gridHeight * self.gridWidth - 1
+        self.body = CircArray(body_max_len, elm_dtype=POINT_DTYPE)
+        
         self.spawnFood()
 
         self.direction = Direction.RIGHT
@@ -99,44 +211,51 @@ class SnakeGame:
             self.gameImgs = None
 
     def spawnFood(self):
-        randX = -1
-        randY = -1
-
-        attempt = 0
-        maxAttempts = 100
-        found = False
-
-        while not found: # simula un do-while perchè non esiste in python 
+        # 100 attempts to find random spot
+        max_attempts = 100
+        for _ in range(max_attempts):
             randX = random.randint(0, self.gridWidth - 1)
             randY = random.randint(0, self.gridHeight - 1)
-            candidate = Point(randX, randY)
+            
+            candidate = np.array((randX, randY), dtype=POINT_DTYPE)
+            if (not np.array_equal(self.head, candidate)) and (not self.body.__contains__(candidate)):
+                self.food = candidate
+                return
 
-            attempt += 1
-            found = ((candidate not in self.body and candidate != self.head) or attempt >= maxAttempts) 
 
-        if(attempt >= maxAttempts):
-            # print("no free cell found to spawn food, spawning in occupied cell")
-            pass
+        # Find all free cells
+        total_cells = self.gridHeight * self.gridWidth
+        free_cell_len = total_cells - (1 + self.body.size)
+        free_cells = np.empty(free_cell_len, dtype=POINT_DTYPE)
+        free_cell_idx = 0
+        for x in range(self.gridWidth):
+            for y in range(self.gridHeight):    
+                candidate = np.array((x, y), dtype=POINT_DTYPE)
+                if (not np.array_equal(self.head, candidate)) and (not self.body.__contains__(candidate)):
+                    free_cells[free_cell_idx] = candidate
+                    free_cell_idx += 1
 
-        self.food = Point(randX, randY)
-
+        # Chore random free cell
+        if free_cell_len != 0:
+            rand_idx = np.random.randint(free_cell_len)
+            self.food = free_cells[rand_idx]
+        else:
+            self.food = np.array((-1, -1), dtype=POINT_DTYPE)
+        
     def hittedWall(self):
-        horizontalWallHit = self.head.x < 0 or self.head.x >= self.gridWidth
-        verticalWallHit = self.head.y < 0 or self.head.y >= self.gridHeight
+        horizontalWallHit = self.head['x'] < 0 or self.head['x'] >= self.gridWidth
+        verticalWallHit = self.head['y'] < 0 or self.head['y'] >= self.gridHeight
         return horizontalWallHit or verticalWallHit
     
     def hittedBody(self):
-        return self.head in self.body
-    
-    def grow(self):
-        # inserisce un nuovo elemento alla fine del body
-        # in modo che venga rimosso al posto dell'ultimo pezzo della coda quando chiamo move,
-        # allungando il body
-        self.body.append(Point(-1, -1)) # (aggiunta in coda)
+        if self.body.size == 0:
+            return False
+        
+        return self.body.__contains__(self.head)
 
     def moveHead(self):
         # calcola la nuova posizione della testa
-        x, y = self.head.x, self.head.y
+        x, y = self.head['x'], self.head['y']
         
         match self.direction:
             case Direction.UP:
@@ -149,7 +268,7 @@ class SnakeGame:
                 x += 1
         
         # mette la testa in quella posizione
-        self.head = Point(x, y)
+        self.head = np.array((x, y), dtype=POINT_DTYPE)
 
     def changeDir(self, dir: Direction):
         if(dir.getOpposite() == self.direction):
@@ -160,37 +279,34 @@ class SnakeGame:
 
     def move(self):
         # aggiungo la testa corrente nel body
-        self.body.insert(0, self.head) # (aggiunta in testa)
+        self.body.head_add(self.head)
 
         self.moveHead()
 
-        if(self.head == self.food):
+        if np.array_equal(self.head, self.food):
             self.spawnFood()
-            self.grow()
             self.score += 1
-
-        self.body.pop() # (rimozione in coda)
+        else:
+            self.body.tail_remove()
         
         if(self.hittedWall() or self.hittedBody()):
             self.isGameOver = True
         
-        if(len(self.body) == (self.gridHeight * self.gridWidth - 1)):
+        if(self.body.size == (self.gridHeight * self.gridWidth - 1)):
             self.isGameWon = True
-
-
 
     def displayCMD(self):
         gameString = " "
 
         for row in range(self.gridHeight):
             for col in range(self.gridWidth):
-                currentPoint = Point(col, row)
+                currentPoint = np.array((col, row), dtype=POINT_DTYPE)
                 
                 if(currentPoint in self.body):
                     gameString += "▢ "
-                elif(currentPoint == self.head):
+                elif np.array_equal(currentPoint, self.head):
                     gameString += "▣ "
-                elif(currentPoint == self.food):
+                elif np.array_equal(currentPoint, self.food):
                     gameString += "◎ "
                 else:
                     gameString += ". "
@@ -217,7 +333,7 @@ class SnakeGame:
                 headAngle = 180
              
         head = pygame.transform.rotate(self.gameImgs["SNAKE"]["HEAD"], headAngle)
-        self.window.blit(head, pygame.Rect(self.head.x*squareSize, self.head.y*squareSize, squareSize, squareSize))
+        self.window.blit(head, pygame.Rect(self.head['x']*squareSize, self.head['y']*squareSize, squareSize, squareSize))
 
         for (i, elm) in enumerate(self.body):
             prev = self.head if (i == 0) else self.body[i-1]
@@ -225,62 +341,68 @@ class SnakeGame:
             next = self.body[i] if (i == len(self.body) - 1) else self.body[i+1]
             
             # choosing piece type
-            if(prev.x == current.x == next.x):
+            if(prev['x'] == current['x'] == next['x']):
                 piece = self.gameImgs["SNAKE"]["BODY"]["HORIZONTAL"]
-            elif(prev.y == current.y == next.y):
+            elif(prev['y'] == current['y'] == next['y']):
                 piece = self.gameImgs["SNAKE"]["BODY"]["VERTICAL"]
             else:
-                if(prev.x < current.x and current.x == next.x):
-                    if(next.y > current.y):
+                if(prev['x'] < current['x'] and current['x'] == next['x']):
+                    if(next['y'] > current['y']):
                         piece = self.gameImgs["SNAKE"]["BODY"]["TURN"]["LEFT-DOWN"]
                     else:
                         piece = self.gameImgs["SNAKE"]["BODY"]["TURN"]["LEFT-UP"]
-                elif(prev.x > current.x and current.x == next.x):
-                    if(next.y > current.y):
+                elif(prev['x'] > current['x'] and current['x'] == next['x']):
+                    if(next['y'] > current['y']):
                         piece = self.gameImgs["SNAKE"]["BODY"]["TURN"]["UP-RIGHT"]
                     else:
                         piece = self.gameImgs["SNAKE"]["BODY"]["TURN"]["DOWN-RIGHT"]
-                elif(prev.y > current.y and current.y == next.y):
-                    if(next.x > current.x):
+                elif(prev['y'] > current['y'] and current['y'] == next['y']):
+                    if(next['x'] > current['x']):
                         piece = self.gameImgs["SNAKE"]["BODY"]["TURN"]["UP-RIGHT"]
                     else:
                         piece = self.gameImgs["SNAKE"]["BODY"]["TURN"]["LEFT-DOWN"]
                 else:
-                    if(next.x > current.x):
+                    if(next['x'] > current['x']):
                         piece = self.gameImgs["SNAKE"]["BODY"]["TURN"]["DOWN-RIGHT"]
                     else:
                         piece = self.gameImgs["SNAKE"]["BODY"]["TURN"]["LEFT-UP"]
 
-            self.window.blit(piece, pygame.Rect(current.x*squareSize, current.y*squareSize, squareSize, squareSize))
+            self.window.blit(piece, pygame.Rect(current['x']*squareSize, current['y']*squareSize, squareSize, squareSize))
 
-        self.window.blit(self.gameImgs["FOOD"], pygame.Rect(self.food.x*squareSize, self.food.y*squareSize, squareSize, squareSize))
+        self.window.blit(self.gameImgs["FOOD"], pygame.Rect(self.food['x']*squareSize, self.food['y']*squareSize, squareSize, squareSize))
 
         pygame.display.flip()
 
-
     def getFoodDistance(self):
-        return math.sqrt(math.pow(self.head.x - self.food.x, 2) + math.pow(self.head.y - self.food.y, 2))
+        return math.sqrt(math.pow(self.head['x'] - self.food['x'], 2) + math.pow(self.head['y'] - self.food['y'], 2))
     
     def spawnRandomly(self):
-        self.head = Point(random.randint(0, self.gridWidth - 1), random.randint(0, self.gridHeight - 1))
+        randX, randY = random.randint(0, self.gridWidth - 1), random.randint(0, self.gridHeight - 1)
+        self.head = np.array((randX, randY), dtype=POINT_DTYPE)
         possibleDirs = []
-        possibleDirs.append(Direction.LEFT if self.head.x > self.gridWidth/2 else Direction.RIGHT)
-        possibleDirs.append(Direction.UP if self.head.y > self.gridHeight/2 else Direction.DOWN)
+        possibleDirs.append(Direction.LEFT if self.head['x'] > self.gridWidth/2 else Direction.RIGHT)
+        possibleDirs.append(Direction.UP if self.head['y'] > self.gridHeight/2 else Direction.DOWN)
         self.direction = possibleDirs[random.randint(0, 1)]
 
     def reset(self):
-        # self.head = Point(0, 0)
-        # self.direction = Direction.RIGHT
-        self.spawnRandomly()
-
         self.score = 0
         self.isGameOver = False
         self.isGameWon = False
 
-        while self.body.__len__() > 0:
-            self.body.pop()
-
+        self.spawnRandomly()
+        self.body.clear()
         self.spawnFood()
 
     def close(self):
         pygame.quit()
+
+    def _grow(self, size):
+        headX, headY = self.head['x'], self.head['y']
+        
+        x = (headX - 1) if (self.direction == Direction.RIGHT) else (headX + 1)if (self.direction == Direction.RIGHT) else headX
+        y = (headY - 1) if (self.direction == Direction.DOWN) else (headY + 1)if (self.direction == Direction.UP) else headY
+        
+        new_elm = np.array((x, y), dtype=POINT_DTYPE)
+
+        for i in range(size):
+            self.body.tail_add(new_elm)
